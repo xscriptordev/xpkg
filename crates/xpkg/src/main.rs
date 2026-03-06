@@ -11,6 +11,7 @@ use tracing::Level;
 use tracing_subscriber::EnvFilter;
 
 use cli::{Cli, Command};
+use xpkg_core::recipe;
 use xpkg_core::XpkgConfig;
 
 fn main() -> Result<()> {
@@ -77,15 +78,40 @@ fn cmd_lint(_config: &XpkgConfig, _args: &cli::LintArgs) -> Result<()> {
     Ok(())
 }
 
-fn cmd_new(_args: &cli::NewArgs) -> Result<()> {
-    tracing::info!("new: not yet implemented");
-    println!("xpkg new — not yet implemented");
+fn cmd_new(args: &cli::NewArgs) -> Result<()> {
+    let template = recipe::generate_template(&args.pkgname);
+
+    let outdir = args
+        .outdir
+        .clone()
+        .unwrap_or_else(|| std::path::PathBuf::from(&args.pkgname));
+
+    std::fs::create_dir_all(&outdir)
+        .with_context(|| format!("failed to create directory {}", outdir.display()))?;
+
+    let xbuild_path = outdir.join("XBUILD");
+    std::fs::write(&xbuild_path, &template)
+        .with_context(|| format!("failed to write {}", xbuild_path.display()))?;
+
+    println!("Created {}", xbuild_path.display());
+    tracing::info!(path = %xbuild_path.display(), "generated XBUILD template");
     Ok(())
 }
 
-fn cmd_srcinfo(_args: &cli::SrcinfoArgs) -> Result<()> {
-    tracing::info!("srcinfo: not yet implemented");
-    println!("xpkg srcinfo — not yet implemented");
+fn cmd_srcinfo(args: &cli::SrcinfoArgs) -> Result<()> {
+    let path = args
+        .file
+        .clone()
+        .unwrap_or_else(|| std::path::PathBuf::from("XBUILD"));
+
+    let raw_recipe = recipe::parse_xbuild(&path)
+        .with_context(|| format!("failed to parse {}", path.display()))?;
+
+    recipe::validate_recipe(&raw_recipe)
+        .with_context(|| format!("validation failed for {}", path.display()))?;
+
+    let srcinfo = recipe::generate_srcinfo(&raw_recipe);
+    print!("{srcinfo}");
     Ok(())
 }
 

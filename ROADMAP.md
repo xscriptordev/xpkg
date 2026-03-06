@@ -4,11 +4,12 @@
 
 ## Current Status
 
-Phase 0 complete — Cargo workspace scaffolded with xpkg (binary) and
-xpkg-core (library) crates, clippy/rustfmt configuration, LICENSE, CI
-pipeline, and example config file. Phase 1 in progress — CLI with 8
-subcommands and TOML configuration parser are implemented.
-Next step: Phase 2 (XBUILD recipe format and PKGBUILD compatibility).
+Phases 0–2 complete — Cargo workspace scaffolded, CLI with 8 subcommands,
+TOML configuration parser, XBUILD parser, PKGBUILD parser, recipe
+validation, srcinfo generator, and `xpkg new` template generator are all
+implemented and tested (26 unit tests passing). CLI and XBUILD format are
+documented in `docs/`.
+Next step: Phase 3 (source management — downloading, checksums, extraction).
 
 ---
 
@@ -27,23 +28,23 @@ Next step: Phase 2 (XBUILD recipe format and PKGBUILD compatibility).
 - [x] Implement configuration parser — ~/.config/xpkg/xpkg.conf TOML format (#8)
 - [x] Implement main.rs orchestration — logging, config loading, subcommand dispatch (#9)
 - [x] Implement global flags — verbose, no-confirm, no-color, builddir, outdir (#10)
-- [/] Implement xpkg new subcommand — generate XBUILD template for a given package name (#11)
-- [/] Define CLI reference documentation — document all commands, flags, and usage patterns (#12)
+- [x] Implement xpkg new subcommand — generate XBUILD template for a given package name (#11)
+- [x] Define CLI reference documentation — document all commands, flags, and usage patterns (#12)
 
 ## Phase 2 · Build Recipe Format <!-- phase:phase-2:recipes -->
 
-- [ ] Define XBUILD specification — TOML-based build recipe format (#13)
-  - [ ] Define [package] section — name, version, release, description, url, license, arch
-  - [ ] Define [dependencies] section — depends, makedepends, checkdepends, optdepends
-  - [ ] Define [source] section — urls, sha256sums, sha512sums, patches
-  - [ ] Define [build] section — prepare, build, check, package functions as multiline strings
-- [ ] Implement XBUILD parser — deserialize TOML into Recipe struct with validation (#14)
-- [ ] Implement PKGBUILD parser — parse Arch Linux PKGBUILD bash scripts for compatibility (#15)
-  - [ ] Extract variables — pkgname, pkgver, pkgrel, depends, makedepends, source, sha256sums
-  - [ ] Extract functions — prepare(), build(), check(), package()
-- [ ] Implement recipe validation — check required fields, verify arch values, validate URLs (#16)
-- [ ] Implement srcinfo generator — produce .SRCINFO-equivalent from parsed recipe (#17)
-- [ ] Write recipe parser test suite — valid, invalid, edge-case XBUILD and PKGBUILD files (#18)
+- [x] Define XBUILD specification — TOML-based build recipe format (#13)
+- [x] Define package section — name, version, release, description, url, license, arch
+- [x] Define dependencies section — depends, makedepends, checkdepends, optdepends
+- [x] Define source section — urls, sha256sums, sha512sums, patches
+- [x] Define build section — prepare, build, check, package functions as multiline strings
+- [x] Implement XBUILD parser — deserialize TOML into Recipe struct with validation (#14)
+- [x] Implement PKGBUILD parser — parse Arch Linux PKGBUILD bash scripts for compatibility (#15)
+- [x] Extract variables — pkgname, pkgver, pkgrel, depends, makedepends, source, sha256sums
+- [x] Extract functions — prepare(), build(), check(), package()
+- [x] Implement recipe validation — check required fields, verify arch values, validate URLs (#16)
+- [x] Implement srcinfo generator — produce .SRCINFO-equivalent from parsed recipe (#17)
+- [x] Write recipe parser test suite — valid, invalid, edge-case XBUILD and PKGBUILD files (#18)
 
 ## Phase 3 · Source Management <!-- phase:phase-3:sources -->
 
