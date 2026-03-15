@@ -58,13 +58,13 @@ Next step: Phase 4 (build engine — prepare/build/check/package pipeline).
 
 ## Phase 4 · Build Engine <!-- phase:phase-4:build-engine -->
 
-- [ ] Implement build orchestration — prepare → build → check → package pipeline (#25)
-- [ ] Implement fakeroot environment — build without real root privileges (#26)
-- [ ] Implement environment variables — PKGDIR, SRCDIR, BUILDDIR, MAKEFLAGS, CFLAGS, CXXFLAGS (#27)
-- [ ] Implement build script execution — run shell commands from recipe build/package sections (#28)
-- [ ] Implement build logging — capture stdout/stderr with timestamps (#29)
-- [ ] Implement build isolation — clean builddir per package, prevent host contamination (#30)
-- [ ] Write build engine test suite — end-to-end build from recipe to installed files (#31)
+- [x] Implement build orchestration — prepare → build → check → package pipeline (#25)
+- [x] Implement fakeroot environment — build without real root privileges (#26)
+- [x] Implement environment variables — PKGDIR, SRCDIR, BUILDDIR, MAKEFLAGS, CFLAGS, CXXFLAGS (#27)
+- [x] Implement build script execution — run shell commands from recipe build/package sections (#28)
+- [x] Implement build logging — capture stdout/stderr with timestamps (#29)
+- [x] Implement build isolation — clean builddir per package, prevent host contamination (#30)
+- [x] Write build engine test suite — end-to-end build from recipe to installed files (#31)
 
 ## Phase 5 · Package Metadata Generation <!-- phase:phase-5:metadata -->
 

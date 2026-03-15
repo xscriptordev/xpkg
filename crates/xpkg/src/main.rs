@@ -66,9 +66,70 @@ fn main() -> Result<()> {
 // Each function below is a placeholder that will be filled with real logic
 // as the corresponding roadmap phase is implemented.
 
-fn cmd_build(_config: &XpkgConfig, _args: &cli::BuildArgs) -> Result<()> {
-    tracing::info!("build: not yet implemented");
-    println!("xpkg build — not yet implemented");
+fn cmd_build(config: &XpkgConfig, args: &cli::BuildArgs) -> Result<()> {
+    use xpkg_core::builder::{build_package, BuildOptions};
+
+    // ── Resolve recipe path ─────────────────────────────────────────
+    let recipe_path = args
+        .file
+        .clone()
+        .unwrap_or_else(|| std::path::PathBuf::from("XBUILD"));
+
+    let recipe_dir = recipe_path
+        .parent()
+        .unwrap_or_else(|| std::path::Path::new("."))
+        .to_path_buf();
+    let recipe_dir = if recipe_dir.as_os_str().is_empty() {
+        std::path::PathBuf::from(".")
+    } else {
+        recipe_dir
+    };
+
+    // ── Parse recipe ────────────────────────────────────────────────
+    let raw_recipe = if args.pkgbuild {
+        recipe::parse_pkgbuild(&recipe_path)
+            .with_context(|| format!("failed to parse PKGBUILD {}", recipe_path.display()))?
+    } else {
+        recipe::parse_xbuild(&recipe_path)
+            .with_context(|| format!("failed to parse {}", recipe_path.display()))?
+    };
+
+    recipe::validate_recipe(&raw_recipe)
+        .with_context(|| format!("recipe validation failed for {}", recipe_path.display()))?;
+
+    tracing::info!(
+        name = %raw_recipe.package.name,
+        version = %raw_recipe.package.version,
+        "recipe loaded"
+    );
+
+    // ── Apply CLI overrides to config ───────────────────────────────
+    let mut build_config = config.clone();
+    if let Some(ref builddir) = args.builddir {
+        build_config.options.builddir = builddir.clone();
+    }
+    if let Some(ref outdir) = args.outdir {
+        build_config.options.outdir = outdir.clone();
+    }
+
+    // ── Build options ───────────────────────────────────────────────
+    let options = BuildOptions {
+        skip_check: args.no_check,
+        keep_builddir: false,
+    };
+
+    // ── Run build pipeline ──────────────────────────────────────────
+    let result = build_package(&build_config, &raw_recipe, &recipe_dir, None, &options)?;
+
+    println!(
+        "==> Built {}-{}-{} in {:.1}s",
+        result.pkgname,
+        result.pkgver,
+        result.pkgrel,
+        result.duration.as_secs_f64()
+    );
+    println!("    Package directory: {}", result.pkgdir.display());
+
     Ok(())
 }
 
