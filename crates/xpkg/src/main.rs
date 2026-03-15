@@ -67,6 +67,7 @@ fn main() -> Result<()> {
 // as the corresponding roadmap phase is implemented.
 
 fn cmd_build(config: &XpkgConfig, args: &cli::BuildArgs) -> Result<()> {
+    use xpkg_core::archive::{create_package, strip_binaries};
     use xpkg_core::builder::{build_package, BuildOptions};
 
     // ── Resolve recipe path ─────────────────────────────────────────
@@ -128,7 +129,23 @@ fn cmd_build(config: &XpkgConfig, args: &cli::BuildArgs) -> Result<()> {
         result.pkgrel,
         result.duration.as_secs_f64()
     );
-    println!("    Package directory: {}", result.pkgdir.display());
+
+    // ── Strip binaries (optional) ───────────────────────────────────
+    if build_config.options.strip_binaries {
+        let stripped =
+            strip_binaries(&result.pkgdir).with_context(|| "failed to strip binaries")?;
+        if stripped > 0 {
+            println!("    Stripped {stripped} ELF binaries");
+        }
+    }
+
+    // ── Create .xp archive ──────────────────────────────────────────
+    let outdir = &build_config.options.outdir;
+    let pkg = create_package(&build_config, &raw_recipe, &result.pkgdir, outdir)
+        .with_context(|| "failed to create package archive")?;
+
+    println!("==> Package: {}", pkg.archive_path.display());
+    println!("    Size: {:.1} KiB", pkg.archive_size as f64 / 1024.0);
 
     Ok(())
 }

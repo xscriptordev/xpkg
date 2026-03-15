@@ -76,13 +76,13 @@ Next step: Phase 4 (build engine — prepare/build/check/package pipeline).
 
 ## Phase 6 · Package Archive Creation <!-- phase:phase-6:archives -->
 
-- [ ] Implement .xp archive builder — tar.zst creation with metadata files and package content (#37)
-  - [ ] Pack .PKGINFO, .BUILDINFO, .MTREE at archive root
-  - [ ] Pack file tree with correct permissions and ownership
-  - [ ] Configure zstd compression level from config
-- [ ] Implement package signing — OpenPGP detached signatures (.sig) via sequoia-openpgp (#38)
-- [ ] Implement strip binaries — optional ELF binary stripping to reduce package size (#39)
-- [ ] Write archive creation test suite — round-trip build, extract, and verify tests (#40)
+- [x] Implement .xp archive builder — tar.zst creation with metadata files and package content (#37)
+  - [x] Pack .PKGINFO, .BUILDINFO, .MTREE at archive root
+  - [x] Pack file tree with correct permissions and ownership
+  - [x] Configure zstd compression level from config
+- [/] Implement package signing — OpenPGP detached signatures (.sig) via sequoia-openpgp (#38)
+- [x] Implement strip binaries — optional ELF binary stripping to reduce package size (#39)
+- [x] Write archive creation test suite — round-trip build, extract, and verify tests (#40)
 
 ## Phase 7 · Package Linting <!-- phase:phase-7:linting -->
 

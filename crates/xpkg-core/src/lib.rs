@@ -3,6 +3,7 @@
 //! This crate contains the business logic, configuration management,
 //! and error types for the xpkg package building tool.
 
+pub mod archive;
 pub mod builder;
 pub mod config;
 pub mod error;
