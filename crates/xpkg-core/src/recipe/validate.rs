@@ -95,10 +95,9 @@ pub fn validate_recipe(recipe: &Recipe) -> Result<(), XpkgError> {
 /// - lowercase letters, digits, hyphens, underscores, dots
 /// - must start with a letter
 fn is_valid_pkgname(name: &str) -> bool {
-    if name.is_empty() {
+    let Some(first) = name.chars().next() else {
         return false;
-    }
-    let first = name.chars().next().unwrap();
+    };
     if !first.is_ascii_lowercase() {
         return false;
     }

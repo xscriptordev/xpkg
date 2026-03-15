@@ -127,6 +127,14 @@ pub struct InfoArgs {
     /// Path to the .xp package archive.
     #[arg(required = true)]
     pub package: PathBuf,
+
+    /// List files contained in the package.
+    #[arg(long, short = 'l')]
+    pub files: bool,
+
+    /// Output metadata as JSON.
+    #[arg(long)]
+    pub json: bool,
 }
 
 #[derive(Debug, clap::Args)]

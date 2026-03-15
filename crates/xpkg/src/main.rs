@@ -260,10 +260,148 @@ fn cmd_srcinfo(args: &cli::SrcinfoArgs) -> Result<()> {
     Ok(())
 }
 
-fn cmd_info(_args: &cli::InfoArgs) -> Result<()> {
-    tracing::info!("info: not yet implemented");
-    println!("xpkg info — not yet implemented");
+fn cmd_info(args: &cli::InfoArgs) -> Result<()> {
+    use xpkg_core::repo::{entry_from_package, list_package_files};
+
+    let package_path = &args.package;
+    tracing::info!(path = %package_path.display(), "inspecting package");
+
+    let entry = entry_from_package(package_path)
+        .with_context(|| format!("failed to inspect {}", package_path.display()))?;
+
+    // ── JSON output ─────────────────────────────────────────────────
+    if args.json {
+        let mut info =
+            serde_json::to_value(&entry).with_context(|| "failed to serialize package info")?;
+
+        if args.files {
+            let files =
+                list_package_files(package_path).with_context(|| "failed to list package files")?;
+            info["files"] = serde_json::json!(files);
+        }
+
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&info).with_context(|| "failed to format JSON")?
+        );
+        return Ok(());
+    }
+
+    // ── Human-readable output ───────────────────────────────────────
+    let w = 18; // label width
+    println!("{:w$}: {}", "Name", entry.name);
+    println!("{:w$}: {}", "Version", entry.full_version());
+    println!("{:w$}: {}", "Description", entry.description);
+    println!("{:w$}: {}", "Architecture", entry.arch);
+
+    if !entry.url.is_empty() {
+        println!("{:w$}: {}", "URL", entry.url);
+    }
+
+    if !entry.license.is_empty() {
+        println!("{:w$}: {}", "License", entry.license);
+    }
+
+    println!(
+        "{:w$}: {}",
+        "Installed Size",
+        format_size(entry.installed_size)
+    );
+    println!(
+        "{:w$}: {}",
+        "Compressed Size",
+        format_size(entry.compressed_size)
+    );
+
+    if entry.build_date > 0 {
+        println!(
+            "{:w$}: {}",
+            "Build Date",
+            format_timestamp(entry.build_date)
+        );
+    }
+
+    if !entry.packager.is_empty() {
+        println!("{:w$}: {}", "Packager", entry.packager);
+    }
+
+    println!("{:w$}: {}", "SHA-256", entry.sha256sum);
+
+    print_list("Depends On", &entry.depends, w);
+    print_list("Make Depends", &entry.makedepends, w);
+    print_list("Check Depends", &entry.checkdepends, w);
+    print_list("Optional Deps", &entry.optdepends, w);
+    print_list("Provides", &entry.provides, w);
+    print_list("Conflicts With", &entry.conflicts, w);
+    print_list("Replaces", &entry.replaces, w);
+
+    // ── File listing ────────────────────────────────────────────────
+    if args.files {
+        let files =
+            list_package_files(package_path).with_context(|| "failed to list package files")?;
+        println!();
+        println!("{:w$}: {}", "Files", files.len());
+        for f in &files {
+            println!("  {f}");
+        }
+    }
+
     Ok(())
+}
+
+// ── Formatting helpers ──────────────────────────────────────────────────────
+
+fn format_size(bytes: u64) -> String {
+    const KIB: u64 = 1024;
+    const MIB: u64 = 1024 * KIB;
+    const GIB: u64 = 1024 * MIB;
+
+    if bytes >= GIB {
+        format!("{:.1} GiB", bytes as f64 / GIB as f64)
+    } else if bytes >= MIB {
+        format!("{:.1} MiB", bytes as f64 / MIB as f64)
+    } else if bytes >= KIB {
+        format!("{:.1} KiB", bytes as f64 / KIB as f64)
+    } else {
+        format!("{bytes} B")
+    }
+}
+
+fn format_timestamp(unix_secs: u64) -> String {
+    // Simple UTC formatting without pulling in chrono.
+    let secs = unix_secs as i64;
+    let days = secs / 86400;
+    let time_of_day = secs % 86400;
+    let hours = time_of_day / 3600;
+    let minutes = (time_of_day % 3600) / 60;
+    let seconds = time_of_day % 60;
+
+    // Days since Unix epoch → year/month/day (civil calendar).
+    let (y, m, d) = days_to_civil(days + 719_468);
+    format!("{y:04}-{m:02}-{d:02} {hours:02}:{minutes:02}:{seconds:02} UTC")
+}
+
+/// Convert a day count (with epoch offset) to (year, month, day).
+/// Algorithm from Howard Hinnant's `chrono`-compatible date library.
+fn days_to_civil(day_count: i64) -> (i64, u32, u32) {
+    let era = day_count.div_euclid(146_097);
+    let doe = day_count.rem_euclid(146_097) as u32;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
+}
+
+fn print_list(label: &str, items: &[String], w: usize) {
+    if items.is_empty() {
+        println!("{label:w$}: None");
+    } else {
+        println!("{label:w$}: {}", items.join("  "));
+    }
 }
 
 fn cmd_verify(args: &cli::VerifyArgs) -> Result<()> {

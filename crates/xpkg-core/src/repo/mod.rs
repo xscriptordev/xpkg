@@ -19,5 +19,5 @@ mod types;
 // Re-export public API.
 pub use db::{add_entry, read_db, remove_entry, write_db};
 pub use deploy::{deploy_repo, DeployResult};
-pub use inspect::entry_from_package;
+pub use inspect::{entry_from_package, list_package_files};
 pub use types::{DbCompression, RepoDb, RepoEntry};

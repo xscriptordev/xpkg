@@ -37,7 +37,7 @@ impl DbCompression {
 }
 
 /// A single package entry inside the repository database.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct RepoEntry {
     // ── identity ────────────────────────────────────────────────────
     pub name: String,

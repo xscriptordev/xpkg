@@ -130,6 +130,44 @@ fn field_many(map: &FieldMap, key: &str) -> Vec<String> {
     map.get(key).cloned().unwrap_or_default()
 }
 
+/// List all file paths contained in a `.xp` archive.
+///
+/// Excludes metadata files (`.PKGINFO`, `.BUILDINFO`, `.MTREE`, `.INSTALL`).
+pub fn list_package_files(package_path: &Path) -> XpkgResult<Vec<String>> {
+    let raw_bytes = fs::read(package_path).map_err(|e| {
+        XpkgError::Io(std::io::Error::new(
+            e.kind(),
+            format!("read package {}: {e}", package_path.display()),
+        ))
+    })?;
+
+    let decoder = zstd::Decoder::new(raw_bytes.as_slice())
+        .map_err(|e| XpkgError::Archive(format!("zstd init: {e}")))?;
+    let mut tar = tar::Archive::new(decoder);
+
+    let mut files = Vec::new();
+    for entry in tar
+        .entries()
+        .map_err(|e| XpkgError::Archive(format!("tar entries: {e}")))?
+    {
+        let entry = entry.map_err(|e| XpkgError::Archive(format!("tar entry: {e}")))?;
+        let path = entry
+            .path()
+            .map_err(|e| XpkgError::Archive(format!("path: {e}")))?;
+        let path_str = path.to_string_lossy().to_string();
+        let normalized = path_str.trim_start_matches("./");
+
+        // Skip metadata files.
+        if normalized.starts_with('.') || normalized.is_empty() {
+            continue;
+        }
+        files.push(normalized.to_string());
+    }
+
+    files.sort();
+    Ok(files)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -196,5 +234,111 @@ builddate = 1700000000
         assert_eq!(entry.installed_size, 2048);
         assert!(!entry.sha256sum.is_empty());
         assert_eq!(entry.filename, "test-1.0.0-1-x86_64.xp");
+    }
+
+    #[test]
+    fn test_list_package_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        let pkg_path = tmp.path().join("test-1.0.0-1-x86_64.xp");
+
+        let pkginfo = "pkgname = test\npkgver = 1.0.0\n";
+
+        let tar_buf = Vec::new();
+        let mut builder = tar::Builder::new(tar_buf);
+
+        // Add .PKGINFO (metadata — should be excluded).
+        let data = pkginfo.as_bytes();
+        let mut header = tar::Header::new_gnu();
+        header.set_size(data.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        builder.append_data(&mut header, ".PKGINFO", data).unwrap();
+
+        // Add regular files.
+        for path in &["usr/bin/hello", "usr/share/doc/hello/README"] {
+            let content = b"content";
+            let mut h = tar::Header::new_gnu();
+            h.set_size(content.len() as u64);
+            h.set_mode(0o755);
+            h.set_cksum();
+            builder.append_data(&mut h, path, &content[..]).unwrap();
+        }
+
+        let tar_bytes = builder.into_inner().unwrap();
+        let compressed = zstd::encode_all(tar_bytes.as_slice(), 3).unwrap();
+        std::fs::write(&pkg_path, &compressed).unwrap();
+
+        let files = list_package_files(&pkg_path).unwrap();
+        assert_eq!(files.len(), 2);
+        assert_eq!(files[0], "usr/bin/hello");
+        assert_eq!(files[1], "usr/share/doc/hello/README");
+    }
+
+    #[test]
+    fn test_list_package_files_empty() {
+        let tmp = tempfile::tempdir().unwrap();
+        let pkg_path = tmp.path().join("empty-1.0-1-x86_64.xp");
+
+        let pkginfo = "pkgname = empty\npkgver = 1.0\n";
+        let tar_buf = Vec::new();
+        let mut builder = tar::Builder::new(tar_buf);
+        let data = pkginfo.as_bytes();
+        let mut header = tar::Header::new_gnu();
+        header.set_size(data.len() as u64);
+        header.set_mode(0o644);
+        header.set_cksum();
+        builder.append_data(&mut header, ".PKGINFO", data).unwrap();
+        let tar_bytes = builder.into_inner().unwrap();
+        let compressed = zstd::encode_all(tar_bytes.as_slice(), 3).unwrap();
+        std::fs::write(&pkg_path, &compressed).unwrap();
+
+        let files = list_package_files(&pkg_path).unwrap();
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn test_entry_from_package_missing_file() {
+        let result = entry_from_package(Path::new("/nonexistent/package.xp"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_entry_from_package_corrupt_archive() {
+        let tmp = tempfile::tempdir().unwrap();
+        let pkg_path = tmp.path().join("corrupt.xp");
+        std::fs::write(&pkg_path, b"not a valid zstd archive").unwrap();
+
+        let result = entry_from_package(&pkg_path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_entry_from_package_no_pkginfo() {
+        let tmp = tempfile::tempdir().unwrap();
+        let pkg_path = tmp.path().join("nopkginfo.xp");
+
+        // Archive with a file but no .PKGINFO.
+        let tar_buf = Vec::new();
+        let mut builder = tar::Builder::new(tar_buf);
+        let content = b"binary";
+        let mut h = tar::Header::new_gnu();
+        h.set_size(content.len() as u64);
+        h.set_mode(0o755);
+        h.set_cksum();
+        builder
+            .append_data(&mut h, "usr/bin/hello", &content[..])
+            .unwrap();
+        let tar_bytes = builder.into_inner().unwrap();
+        let compressed = zstd::encode_all(tar_bytes.as_slice(), 3).unwrap();
+        std::fs::write(&pkg_path, &compressed).unwrap();
+
+        let result = entry_from_package(&pkg_path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_list_package_files_nonexistent() {
+        let result = list_package_files(Path::new("/nonexistent/file.xp"));
+        assert!(result.is_err());
     }
 }

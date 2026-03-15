@@ -152,4 +152,25 @@ mod tests {
         let loaded = load_keyring(&ring_path).unwrap();
         assert_eq!(loaded.len(), 2);
     }
+
+    #[test]
+    fn test_load_cert_nonexistent_file() {
+        let result = load_cert(Path::new("/nonexistent/key.pub"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_load_cert_invalid_data() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join("garbage.pub");
+        std::fs::write(&path, b"not a valid key").unwrap();
+        assert!(load_cert(&path).is_err());
+    }
+
+    #[test]
+    fn test_find_cert_by_id_no_match() {
+        let c1 = generate_test_key();
+        let certs = vec![c1];
+        assert!(find_cert_by_id(&certs, "0000DEAD").is_none());
+    }
 }

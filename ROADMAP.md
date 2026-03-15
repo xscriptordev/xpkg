@@ -97,23 +97,23 @@ Next step: Phase 4 (build engine — prepare/build/check/package pipeline).
 
 ## Phase 8 · Repository Management <!-- phase:phase-8:repo-tools -->
 
-- [ ] Implement repo-add subcommand — add packages to a repository database (.db.tar.zst) (#49)
-  - [ ] Create desc and depends entries from package metadata
-  - [ ] Update existing entries on version upgrade
-  - [ ] Sign repository database if configured
-- [ ] Implement repo-remove subcommand — remove packages from repository database (#50)
-- [ ] Implement repo database format — compatible with ALPM repo-db format for xpm consumption (#51)
-- [ ] Implement GitHub Pages deployment helper — generate static repo structure for hosting (#52)
-- [ ] Write repository management test suite — add, remove, update, and verify repo databases (#53)
+- [x] Implement repo-add subcommand — add packages to a repository database (.db.tar.zst) (#49)
+  - [x] Create desc and depends entries from package metadata
+  - [x] Update existing entries on version upgrade
+  - [x] Sign repository database if configured
+- [x] Implement repo-remove subcommand — remove packages from repository database (#50)
+- [x] Implement repo database format — compatible with ALPM repo-db format for xpm consumption (#51)
+- [x] Implement GitHub Pages deployment helper — generate static repo structure for hosting (#52)
+- [x] Write repository management test suite — add, remove, update, and verify repo databases (#53)
 
 ## Phase 9 · Integration and Hardening <!-- phase:phase-9:integration -->
 
-- [ ] Implement xpkg verify subcommand — validate .xp package integrity and signatures (#54)
-- [ ] Implement xpkg info subcommand — display metadata from a .xp archive without installing (#55)
+- [x] Implement xpkg verify subcommand — validate .xp package integrity and signatures (#54)
+- [x] Implement xpkg info subcommand — display metadata from a .xp archive without installing (#55)
 - [ ] Integration tests with xpm — build packages with xpkg and install with xpm end-to-end (#56)
 - [ ] Run comparative benchmarks vs makepkg — build time, package size, and compression performance (#57)
-- [ ] Complete test suite — unit, integration, and edge-case coverage (#58)
-- [ ] Audit error handling — corrupt sources, disk full, interrupted builds, missing dependencies (#59)
+- [x] Complete test suite — unit, integration, and edge-case coverage (#58)
+- [x] Audit error handling — corrupt sources, disk full, interrupted builds, missing dependencies (#59)
 
 ## Phase 10 · Future Goals — Post v1.0 <!-- phase:phase-10:future -->
 
