@@ -80,7 +80,7 @@ Next step: Phase 4 (build engine — prepare/build/check/package pipeline).
   - [x] Pack .PKGINFO, .BUILDINFO, .MTREE at archive root
   - [x] Pack file tree with correct permissions and ownership
   - [x] Configure zstd compression level from config
-- [/] Implement package signing — OpenPGP detached signatures (.sig) via sequoia-openpgp (#38)
+- [x] Implement package signing — OpenPGP detached signatures (.sig) via sequoia-openpgp (#38)
 - [x] Implement strip binaries — optional ELF binary stripping to reduce package size (#39)
 - [x] Write archive creation test suite — round-trip build, extract, and verify tests (#40)
 

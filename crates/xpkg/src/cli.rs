@@ -134,6 +134,10 @@ pub struct VerifyArgs {
     /// Path to the .xp package archive.
     #[arg(required = true)]
     pub package: PathBuf,
+
+    /// Path to a public key or keyring to verify against.
+    #[arg(long, short = 'k', value_name = "PATH")]
+    pub key: Option<PathBuf>,
 }
 
 #[derive(Debug, clap::Args)]

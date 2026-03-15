@@ -40,5 +40,8 @@ bzip2 = "0.5"
 zstd = "0.13"
 zip = "2"
 
+# OpenPGP signing
+sequoia-openpgp = { version = "1", default-features = false, features = ["crypto-rust", "allow-experimental-crypto", "allow-variable-time-crypto"] }
+
 # Internal crates
 xpkg-core = { path = "crates/xpkg-core" }

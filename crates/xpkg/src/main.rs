@@ -56,7 +56,7 @@ fn main() -> Result<()> {
         Command::Srcinfo(args) => cmd_srcinfo(args),
         Command::Info(args) => cmd_info(args),
         Command::Verify(args) => cmd_verify(args),
-        Command::RepoAdd(args) => cmd_repo_add(args),
+        Command::RepoAdd(args) => cmd_repo_add(&config, args),
         Command::RepoRemove(args) => cmd_repo_remove(args),
     }
 }
@@ -146,6 +146,28 @@ fn cmd_build(config: &XpkgConfig, args: &cli::BuildArgs) -> Result<()> {
 
     println!("==> Package: {}", pkg.archive_path.display());
     println!("    Size: {:.1} KiB", pkg.archive_size as f64 / 1024.0);
+
+    // ── Sign package (optional) ─────────────────────────────────────
+    if args.sign || build_config.options.sign {
+        use xpkg_core::signing::{load_secret_key, sign_file};
+
+        let key_path = std::path::PathBuf::from(&build_config.options.sign_key);
+        if key_path.as_os_str().is_empty() {
+            anyhow::bail!("--sign requires a signing key; set sign_key in xpkg.conf");
+        }
+
+        let secret_key =
+            load_secret_key(&key_path).with_context(|| "failed to load signing key")?;
+        let sig = sign_file(&pkg.archive_path, &secret_key, false)
+            .with_context(|| "failed to sign package")?;
+
+        println!(
+            "    Signature: {} ({} bytes, key {})",
+            sig.sig_path.display(),
+            sig.sig_size,
+            sig.key_id
+        );
+    }
 
     Ok(())
 }
@@ -244,13 +266,53 @@ fn cmd_info(_args: &cli::InfoArgs) -> Result<()> {
     Ok(())
 }
 
-fn cmd_verify(_args: &cli::VerifyArgs) -> Result<()> {
-    tracing::info!("verify: not yet implemented");
-    println!("xpkg verify — not yet implemented");
+fn cmd_verify(args: &cli::VerifyArgs) -> Result<()> {
+    use xpkg_core::signing::{load_cert, load_keyring, verify_file, VerifyOutcome};
+
+    let package_path = &args.package;
+    let sig_path = package_path.with_extension(format!(
+        "{}.sig",
+        package_path
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy()
+    ));
+
+    if !sig_path.exists() {
+        anyhow::bail!("signature file not found: {}", sig_path.display());
+    }
+
+    let certs = match &args.key {
+        Some(key_path) => {
+            // Try as keyring first, fall back to single cert.
+            load_keyring(key_path).or_else(|_| load_cert(key_path).map(|c| vec![c]))?
+        }
+        None => {
+            anyhow::bail!("no public key specified; use --key <path> to provide one");
+        }
+    };
+
+    println!("==> Verifying {}", package_path.display());
+
+    let outcome = verify_file(package_path, &sig_path, &certs)
+        .with_context(|| "signature verification failed")?;
+
+    match outcome {
+        VerifyOutcome::Good { key_id } => {
+            println!("    ✓ Valid signature (key {key_id})");
+        }
+        VerifyOutcome::UnknownKey => {
+            anyhow::bail!("signature made by an unknown key");
+        }
+        VerifyOutcome::Bad { reason } => {
+            anyhow::bail!("bad signature: {reason}");
+        }
+    }
+
     Ok(())
 }
 
-fn cmd_repo_add(args: &cli::RepoAddArgs) -> Result<()> {
+fn cmd_repo_add(config: &XpkgConfig, args: &cli::RepoAddArgs) -> Result<()> {
     use xpkg_core::repo::{add_entry, entry_from_package, read_db, write_db};
 
     let db_path = &args.db;
@@ -282,6 +344,27 @@ fn cmd_repo_add(args: &cli::RepoAddArgs) -> Result<()> {
 
     println!("==> Added {pkg_display} to {}", db_path.display());
     println!("    Repository now contains {} package(s)", db.len());
+
+    // ── Sign database (optional) ────────────────────────────────────
+    if args.sign {
+        use xpkg_core::signing::{load_secret_key, sign_file};
+
+        let key_path = std::path::PathBuf::from(&config.options.sign_key);
+        if key_path.as_os_str().is_empty() {
+            anyhow::bail!("--sign requires a signing key; set sign_key in xpkg.conf");
+        }
+
+        let secret_key =
+            load_secret_key(&key_path).with_context(|| "failed to load signing key")?;
+        let sig =
+            sign_file(db_path, &secret_key, false).with_context(|| "failed to sign database")?;
+
+        println!(
+            "    Database signed: {} (key {})",
+            sig.sig_path.display(),
+            sig.key_id
+        );
+    }
 
     Ok(())
 }

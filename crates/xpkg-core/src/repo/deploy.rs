@@ -39,9 +39,8 @@ pub fn deploy_repo(db: &RepoDb, packages_dir: &Path, outdir: &Path) -> XpkgResul
 
     // Copy from the db's own path if it differs from the destination.
     if db.db_path != db_dest && db.db_path.exists() {
-        fs::copy(&db.db_path, &db_dest).map_err(|e| {
-            XpkgError::Io(std::io::Error::new(e.kind(), format!("copy db: {e}")))
-        })?;
+        fs::copy(&db.db_path, &db_dest)
+            .map_err(|e| XpkgError::Io(std::io::Error::new(e.kind(), format!("copy db: {e}"))))?;
     }
 
     // ── Convenience symlink ─────────────────────────────────────────
