@@ -21,7 +21,9 @@ These flags can be used with any subcommand.
 
 ### `build` — Build a Package
 
-Build a `.xp` package from an XBUILD or PKGBUILD recipe.
+Build a `.xp` package from an XBUILD or PKGBUILD recipe. Runs the full
+pipeline: parse recipe → fetch sources → prepare → build → check → package →
+strip → archive → sign.
 
 ```bash
 xpkg build [OPTIONS]
@@ -31,10 +33,10 @@ xpkg build [OPTIONS]
 |------|-------|-------|-------------|
 | `--file` | `-f` | `PATH` | Path to the XBUILD or PKGBUILD file (default: `./XBUILD`) |
 | `--pkgbuild` | — | — | Parse the recipe as a PKGBUILD instead of XBUILD |
-| `--builddir` | `-d` | `PATH` | Alternative build directory |
-| `--outdir` | `-o` | `PATH` | Output directory for the built `.xp` package |
+| `--builddir` | `-d` | `PATH` | Alternative build directory (overrides config) |
+| `--outdir` | `-o` | `PATH` | Output directory for the built `.xp` package (overrides config) |
 | `--no-check` | — | — | Skip the `check()` phase |
-| `--sign` | — | — | Sign the package after building |
+| `--sign` | — | — | Sign the package after building (requires `sign_key` in config) |
 
 **Examples:**
 
@@ -44,15 +46,24 @@ xpkg build -f path/to/XBUILD          # Build from a specific file
 xpkg build --pkgbuild -f ./PKGBUILD   # Build from a PKGBUILD
 xpkg build --no-check -o ./out        # Skip tests, output to ./out
 xpkg build --sign                      # Build and sign the package
+xpkg build -d /tmp/mybuild -o ./pkgs  # Custom build and output dirs
 ```
 
-> **Status:** not yet implemented — planned for Phase 4.
+**Build pipeline steps:**
+
+1. Parse and validate the recipe
+2. Apply CLI overrides (builddir, outdir)
+3. Run the build pipeline (prepare → build → check → package)
+4. Strip ELF binaries (if `strip_binaries = true` in config)
+5. Create `.xp` archive (tar.zst by default)
+6. Sign the package (if `--sign` or `sign = true` in config)
 
 ---
 
 ### `lint` — Lint a Package Archive
 
-Run quality checks on a built `.xp` package archive.
+Run quality checks on a built `.xp` package archive. Extracts the archive,
+reads `.PKGINFO`, and runs all lint rules.
 
 ```bash
 xpkg lint <PACKAGE> [OPTIONS]
@@ -64,7 +75,7 @@ xpkg lint <PACKAGE> [OPTIONS]
 
 | Flag | Description |
 |------|-------------|
-| `--strict` | Treat lint warnings as errors |
+| `--strict` | Treat lint warnings as errors (exit code 1) |
 
 **Examples:**
 
@@ -73,7 +84,88 @@ xpkg lint hello-2.12-1-x86_64.xp          # Run lint checks
 xpkg lint hello-2.12-1-x86_64.xp --strict # Fail on any warning
 ```
 
-> **Status:** not yet implemented — planned for Phase 7.
+**Lint categories:**
+
+- Permission checks — world-writable files, suid/sgid, ownership
+- Path checks — files in non-standard locations (`/usr/local`, etc.)
+- Metadata checks — `.PKGINFO` completeness and correctness
+- Dependency checks — ELF dependencies vs declared depends
+- ELF analysis — RPATH, TEXTREL, stack protector
+
+See [Linting Rules](LINTING.md) for the complete list.
+
+---
+
+### `info` — Display Package Metadata
+
+Display metadata from a built `.xp` package archive without installing it.
+
+```bash
+xpkg info <PACKAGE> [OPTIONS]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `PACKAGE` | Path to the `.xp` package archive |
+
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--files` | `-l` | List all files contained in the package |
+| `--json` | — | Output metadata as JSON (machine-readable) |
+
+**Examples:**
+
+```bash
+xpkg info hello-2.12-1-x86_64.xp           # Human-readable metadata
+xpkg info hello-2.12-1-x86_64.xp --files   # Include file listing
+xpkg info hello-2.12-1-x86_64.xp --json    # JSON output for scripting
+```
+
+**Sample output:**
+
+```
+Name              : hello
+Version           : 2.12-1
+Description       : GNU Hello — the friendly greeter
+Architecture      : x86_64
+URL               : https://www.gnu.org/software/hello/
+License           : GPL-3.0-or-later
+Installed Size    : 48.2 KiB
+Compressed Size   : 18.7 KiB
+Build Date        : 2026-03-15 12:30:00 UTC
+SHA-256           : a948904f2f0f479b...
+Depends On        : glibc
+Make Depends      : gcc  make
+Optional Deps     : None
+```
+
+---
+
+### `verify` — Verify Package Integrity
+
+Verify the OpenPGP detached signature of a `.xp` package. Looks for a
+`.xp.sig` file alongside the package.
+
+```bash
+xpkg verify <PACKAGE> [OPTIONS]
+```
+
+| Argument | Description |
+|----------|-------------|
+| `PACKAGE` | Path to the `.xp` package archive |
+
+| Flag | Short | Value | Description |
+|------|-------|-------|-------------|
+| `--key` | `-k` | `PATH` | Path to a public key or keyring file |
+
+**Examples:**
+
+```bash
+xpkg verify hello-2.12-1-x86_64.xp --key packager.pub
+xpkg verify hello-2.12-1-x86_64.xp -k /etc/xpkg/trusted.gpg
+```
+
+See [Package Signing](SIGNING.md) for key generation and setup.
 
 ---
 
@@ -101,8 +193,7 @@ xpkg new mylib -o packages/     # Create packages/XBUILD
 ```
 
 The generated XBUILD contains all sections with placeholder values and
-comments explaining each field. Edit the template and fill in the real
-values before building.
+comments explaining each field.
 
 ---
 
@@ -129,53 +220,10 @@ xpkg srcinfo > .SRCINFO          # Write output to .SRCINFO
 
 ---
 
-### `info` — Display Package Metadata
-
-Display metadata from a built `.xp` package archive without installing it.
-
-```bash
-xpkg info <PACKAGE>
-```
-
-| Argument | Description |
-|----------|-------------|
-| `PACKAGE` | Path to the `.xp` package archive |
-
-**Examples:**
-
-```bash
-xpkg info hello-2.12-1-x86_64.xp
-```
-
-> **Status:** not yet implemented — planned for Phase 9.
-
----
-
-### `verify` — Verify Package Integrity
-
-Verify the integrity and signature of a `.xp` package archive.
-
-```bash
-xpkg verify <PACKAGE>
-```
-
-| Argument | Description |
-|----------|-------------|
-| `PACKAGE` | Path to the `.xp` package archive |
-
-**Examples:**
-
-```bash
-xpkg verify hello-2.12-1-x86_64.xp
-```
-
-> **Status:** not yet implemented — planned for Phase 9.
-
----
-
 ### `repo-add` — Add Package to Repository
 
-Add a `.xp` package to a repository database.
+Add a `.xp` package to a repository database. If the package already exists
+in the database, the entry is updated.
 
 ```bash
 xpkg repo-add <DB> <PACKAGE> [OPTIONS]
@@ -183,7 +231,7 @@ xpkg repo-add <DB> <PACKAGE> [OPTIONS]
 
 | Argument | Description |
 |----------|-------------|
-| `DB` | Path to the repository database file |
+| `DB` | Path to the repository database file (e.g. `myrepo.db.tar.zst`) |
 | `PACKAGE` | Path to the `.xp` package to add |
 
 | Flag | Description |
@@ -197,13 +245,16 @@ xpkg repo-add myrepo.db.tar.zst hello-2.12-1-x86_64.xp
 xpkg repo-add myrepo.db.tar.zst hello-2.12-1-x86_64.xp --sign
 ```
 
-> **Status:** not yet implemented — planned for Phase 8.
+The database is created automatically if it does not exist. Supported formats:
+`.db.tar.zst`, `.db.tar.gz`, `.db.tar.xz`.
+
+See [Repository Management](REPOSITORY.md) for hosting instructions.
 
 ---
 
 ### `repo-remove` — Remove Package from Repository
 
-Remove a package entry from a repository database.
+Remove a package entry from a repository database by name.
 
 ```bash
 xpkg repo-remove <DB> <PKGNAME> [OPTIONS]
@@ -225,8 +276,6 @@ xpkg repo-remove myrepo.db.tar.zst hello
 xpkg repo-remove myrepo.db.tar.zst hello --sign
 ```
 
-> **Status:** not yet implemented — planned for Phase 8.
-
 ---
 
 ## Exit Codes
@@ -234,7 +283,7 @@ xpkg repo-remove myrepo.db.tar.zst hello --sign
 | Code | Meaning |
 |------|---------|
 | `0` | Success |
-| `1` | General error (invalid recipe, build failure, etc.) |
+| `1` | General error (invalid recipe, build failure, lint errors, bad signature) |
 | `2` | Invalid usage (missing arguments, unknown flags) |
 
 ---
@@ -245,16 +294,28 @@ xpkg repo-remove myrepo.db.tar.zst hello --sign
 |----------|-------------|
 | `RUST_LOG` | Override tracing log level filter (e.g. `RUST_LOG=debug`) |
 
+During builds, these variables are set in the build environment:
+
+| Variable | Description |
+|----------|-------------|
+| `PKGDIR` | Destination directory for installed files |
+| `SRCDIR` | Directory containing extracted source files |
+| `BUILDDIR` | Top-level build directory |
+| `MAKEFLAGS` | Make flags from config |
+| `CFLAGS` | C compiler flags from config |
+| `CXXFLAGS` | C++ compiler flags from config |
+| `LDFLAGS` | Linker flags from config |
+
 ---
 
 ## Configuration
 
 xpkg reads its configuration from `~/.config/xpkg/xpkg.conf` (or the
-path given via `--config`). See `etc/xpkg.conf.example` for all
-available options.
+path given via `--config`). See [`etc/xpkg.conf.example`](../etc/xpkg.conf.example)
+for all available options.
 
 Key configuration sections:
 
-- **`[options]`** — builddir, outdir, sign, compress method/level, strip
+- **`[options]`** — builddir, outdir, sign, sign_key, compress method/level, strip_binaries
 - **`[environment]`** — MAKEFLAGS, CFLAGS, CXXFLAGS, LDFLAGS
 - **`[lint]`** — enable/disable linting, strict mode

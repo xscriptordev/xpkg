@@ -1,202 +1,208 @@
-<h1 align="center">X Package Builder</h1>
+<h1 align="center">xpkg</h1>
 
-> Developer tool for building, packaging, and maintaining packages for the X distribution and xpm.
+<p align="center">
+  <strong>Package builder for the X distribution</strong><br>
+  Build, lint, sign, and publish <code>.xp</code> packages — the developer companion to
+  <a href="https://github.com/xscriptordev/xpm">xpm</a>.
+</p>
+
+<p align="center">
+  <img alt="License" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue">
+  <img alt="Rust" src="https://img.shields.io/badge/rust-2021-orange">
+</p>
+
+---
 
 ## Overview
 
-`xpkg` is the package building companion to [`xpm`](https://github.com/xscriptordev/xpm). It reads build recipes (`XBUILD` files), fetches sources, compiles software in a controlled environment, and produces `.xp` packages ready for installation with `xpm`. It maintains backward compatibility with Arch Linux `PKGBUILD` files.
+`xpkg` reads build recipes (**XBUILD** or **PKGBUILD** files), fetches sources,
+compiles software in an isolated environment, and produces `.xp` packages ready
+for installation with `xpm`. Think of it as the `makepkg` + `repo-add` +
+`namcap` equivalent for the X ecosystem — written entirely in Rust.
 
-Think of it as the `makepkg` equivalent for the X ecosystem — written in pure Rust, with modern tooling and safety guarantees.
+### Highlights
 
-### Key features
+| Feature | Description |
+|---------|-------------|
+| **Pure Rust** | Zero C dependencies — consistent with the xpm ecosystem |
+| **XBUILD format** | Declarative TOML-based recipes as a modern alternative to PKGBUILD |
+| **PKGBUILD compat** | Seamlessly build from Arch Linux PKGBUILD files |
+| **Fakeroot builds** | Isolated packaging without real root privileges (unshare / fakeroot / tar-rewrite) |
+| **Package signing** | OpenPGP detached signatures via sequoia-openpgp (pure Rust) |
+| **Linting** | Automated quality checks: dependencies, permissions, paths, metadata, ELF analysis |
+| **Repository tools** | Create and manage ALPM-compatible package databases for `xpm` |
+| **Source management** | HTTP download with retries, SHA-256/512 verification, Git clone, local cache |
 
-- **Pure Rust** — zero C dependencies, consistent with the xpm ecosystem
-- **XBUILD format** — declarative TOML-based build recipes as a modern alternative to PKGBUILD shell scripts
-- **PKGBUILD compatibility** — parse and build from Arch Linux PKGBUILD files
-- **Native .xp output** — produces X Package archives (tar.zst) with `.PKGINFO` / `.BUILDINFO` / `.MTREE`
-- **Fakeroot builds** — isolated build environment without requiring real root privileges
-- **Package linting** — automated quality checks (dependencies, permissions, metadata, ELF analysis)
-- **Repository tooling** — create and manage package repositories (`xpkg repo-add`, `xpkg repo-remove`)
-- **Source management** — automatic download, verification, and extraction of source archives
-- **Reproducible builds** — deterministic build metadata via `.BUILDINFO`
-
-## Installation
+## Quick Start
 
 ```bash
+# 1. Install xpkg
 git clone https://github.com/xscriptordev/xpkg.git
 cd xpkg
 cargo build --release
-sudo cp target/release/xpkg /usr/local/bin/
-```
+sudo install -Dm755 target/release/xpkg /usr/local/bin/xpkg
 
-## Usage
+# 2. Create a new package recipe
+xpkg new hello
+cd hello
+# Edit the XBUILD file with your package details
 
-```bash
-# Build a package from an XBUILD in the current directory
+# 3. Build the package
 xpkg build
 
-# Build from a PKGBUILD (Arch compatibility)
-xpkg build --pkgbuild
+# 4. Inspect the result
+xpkg info hello-1.0.0-1-x86_64.xp
+xpkg info hello-1.0.0-1-x86_64.xp --files
 
-# Build from a specific recipe file
-xpkg build -f path/to/XBUILD
+# 5. Lint for quality issues
+xpkg lint hello-1.0.0-1-x86_64.xp
 
-# Lint a package archive
-xpkg lint <package.xp>
-
-# Generate .SRCINFO equivalent from XBUILD
-xpkg srcinfo
-
-# Create a new XBUILD template
-xpkg new <pkgname>
-
-# Add a package to a repository database
-xpkg repo-add <repo.db.tar.zst> <package.xp>
-
-# Remove a package from a repository database
-xpkg repo-remove <repo.db.tar.zst> <pkgname>
-
-# Verify package integrity
-xpkg verify <package.xp>
-
-# Display package metadata
-xpkg info <package.xp>
+# 6. Install with xpm
+sudo xpm install hello-1.0.0-1-x86_64.xp
 ```
 
-### Global flags
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `xpkg build` | Build a `.xp` package from an XBUILD or PKGBUILD recipe |
+| `xpkg lint <pkg>` | Run quality checks on a built package |
+| `xpkg info <pkg>` | Display package metadata (supports `--files` and `--json`) |
+| `xpkg verify <pkg>` | Verify package integrity and OpenPGP signature |
+| `xpkg new <name>` | Generate a new XBUILD template |
+| `xpkg srcinfo` | Generate .SRCINFO-style output from an XBUILD |
+| `xpkg repo-add <db> <pkg>` | Add a package to a repository database |
+| `xpkg repo-remove <db> <name>` | Remove a package from a repository database |
+
+### Global Flags
 
 | Flag | Description |
 |------|-------------|
 | `-c, --config <PATH>` | Custom configuration file |
-| `-v, --verbose` | Increase verbosity (-v, -vv, -vvv) |
+| `-v, --verbose` | Increase verbosity (`-v`, `-vv`, `-vvv`) |
 | `--no-confirm` | Skip confirmation prompts |
 | `--no-color` | Disable colored output |
-| `-d, --builddir <PATH>` | Alternative build directory |
-| `-o, --outdir <PATH>` | Output directory for built packages |
+
+See the [CLI Reference](docs/CLI.md) for full details on every command and flag.
 
 ## XBUILD Format
 
-`XBUILD` is a TOML-based build recipe format — declarative, type-safe, and easy to parse programmatically.
+XBUILD is a TOML-based build recipe — structured, type-safe, and easy to parse:
 
 ```toml
 [package]
-name = "example"
-version = "1.0.0"
+name = "hello"
+version = "2.12"
 release = 1
-description = "An example package"
-url = "https://example.com"
+description = "GNU Hello — the friendly greeter"
+url = "https://www.gnu.org/software/hello/"
 license = ["GPL-3.0-or-later"]
 arch = ["x86_64"]
 
 [dependencies]
-depends = ["glibc", "openssl"]
-makedepends = ["cmake", "ninja"]
-optdepends = ["docs: documentation files"]
+depends = ["glibc"]
+makedepends = ["gcc", "make"]
 
 [source]
-urls = [
-    "https://example.com/releases/example-1.0.0.tar.gz",
-]
-sha256sums = [
-    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-]
+urls = ["https://ftp.gnu.org/gnu/hello/hello-2.12.tar.gz"]
+sha256sums = ["cf04af86dc085268c5f4470fbae49b18afbc221b78096aab842d934a76bad0ab"]
 
 [build]
-prepare = """
-cd example-1.0.0
-patch -p1 < ../fix-build.patch
-"""
-
 build = """
-cd example-1.0.0
-cmake -B build -G Ninja -DCMAKE_INSTALL_PREFIX=/usr
-ninja -C build
+cd hello-2.12
+./configure --prefix=/usr
+make
 """
 
 package = """
-cd example-1.0.0
-DESTDIR=$PKGDIR ninja -C build install
+cd hello-2.12
+make DESTDIR=$PKGDIR install
 """
 ```
 
+See the full [XBUILD Specification](docs/XBUILD.md).
+
 ## Configuration
 
-Configuration file: `~/.config/xpkg/xpkg.conf` (TOML format).
+Configuration file: `~/.config/xpkg/xpkg.conf` (TOML). See
+[`etc/xpkg.conf.example`](etc/xpkg.conf.example) for all options.
 
 ```toml
 [options]
 builddir = "/tmp/xpkg-build"
 outdir = "."
-sign = false
-sign_key = ""
 strip_binaries = true
-compress = "zstd"
+compress = "zstd"       # zstd | gzip | xz
 compress_level = 19
 
 [environment]
 makeflags = "-j$(nproc)"
 cflags = "-march=x86-64 -O2 -pipe"
 cxxflags = "-march=x86-64 -O2 -pipe"
-
-[lint]
-enabled = true
-strict = false
 ```
 
-## Project structure
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Installation Guide](docs/INSTALLATION.md) | Build from source, requirements, setup |
+| [Packaging Guide](docs/PACKAGING-GUIDE.md) | Step-by-step tutorial to create your first package |
+| [CLI Reference](docs/CLI.md) | Complete command and flag reference |
+| [XBUILD Specification](docs/XBUILD.md) | The TOML recipe format in detail |
+| [Source Management](docs/SOURCES.md) | Download, verify, extract, and cache sources |
+| [Package Signing](docs/SIGNING.md) | Key generation, signing, and verification |
+| [Repository Management](docs/REPOSITORY.md) | Create and host package repositories |
+| [Linting Rules](docs/LINTING.md) | All lint checks and their severity levels |
+
+## Project Structure
 
 ```text
 xpkg/
-├── Cargo.toml                  # Workspace root
 ├── crates/
-│   ├── xpkg/                   # Binary crate (CLI frontend)
+│   ├── xpkg/               # Binary crate — CLI frontend
 │   │   └── src/
-│   │       ├── main.rs         # Entry point, logging, config, dispatch
-│   │       └── cli.rs          # clap CLI definition
-│   └── xpkg-core/              # Library crate (core logic)
+│   │       ├── main.rs      # Entry point, dispatch
+│   │       └── cli.rs       # clap CLI definitions
+│   └── xpkg-core/           # Library crate — core logic
 │       └── src/
-│           ├── lib.rs           # Module root
-│           ├── config.rs        # Configuration parser
-│           ├── error.rs         # Error types
-│           ├── recipe/          # Build recipe parsing (XBUILD + PKGBUILD)
-│           ├── builder/         # Build orchestration and fakeroot
-│           ├── archive/         # Package archive creation (.xp)
-│           ├── metadata/        # .PKGINFO, .BUILDINFO, .MTREE generation
-│           ├── lint/            # Package linting framework
-│           └── repo/            # Repository database management
-├── docs/
-│   ├── XBUILD.md               # XBUILD format specification
-│   ├── CLI.md                   # CLI reference
-│   └── LINTING.md              # Linting rules documentation
-├── etc/
-│   └── xpkg.conf.example       # Example configuration
-└── ROADMAP.md                   # Development roadmap
+│           ├── config.rs     # Configuration parser
+│           ├── error.rs      # Error types (thiserror)
+│           ├── recipe/       # XBUILD + PKGBUILD parsers
+│           ├── source/       # Download, checksum, extraction, cache
+│           ├── builder/      # Build pipeline + fakeroot
+│           ├── metadata/     # .PKGINFO, .BUILDINFO, .MTREE, .INSTALL
+│           ├── archive/      # .xp archive creation + ELF stripping
+│           ├── lint/         # Linting framework + rules
+│           ├── signing/      # OpenPGP signing (sequoia-openpgp)
+│           └── repo/         # Repository database management
+├── docs/                     # User documentation
+├── etc/                      # Example configuration
+└── ROADMAP.md                # Development roadmap
 ```
 
 ## Relationship with xpm
 
-`xpkg` and `xpm` form the two halves of the X packaging ecosystem:
-
 | Tool | Role | Analogy |
 |------|------|---------|
-| `xpm` | Package manager — install, remove, upgrade, resolve dependencies | `pacman` |
-| `xpkg` | Package builder — compile, package, lint, manage repositories | `makepkg` + `repo-add` + `namcap` |
+| **xpm** | Package manager — install, remove, upgrade, resolve deps | `pacman` |
+| **xpkg** | Package builder — compile, package, lint, manage repos | `makepkg` + `repo-add` + `namcap` |
 
-`xpkg` produces `.xp` packages that `xpm` installs. They share the same package format specification and metadata structures, but are independent binaries with separate codebases.
+`xpkg` produces `.xp` packages that `xpm` installs. They share the same
+package format and metadata structures but are independent binaries.
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the full development roadmap.
+See [ROADMAP.md](ROADMAP.md) for the full development plan.
 
 | Version | Milestone |
-|---|---|
-| `v0.1.0` | Functional CLI with configuration |
+|---------|-----------|
+| `v0.1.0` | CLI with configuration |
 | `v0.3.0` | Recipe parsing and source management |
-| `v0.5.0` | Build engine, metadata generation, and archive creation |
-| `v0.7.0` | Package linting framework |
-| `v0.9.0` | Repository tooling and xpm integration |
+| `v0.5.0` | Build engine, metadata, and archives |
+| `v0.7.0` | Package linting |
+| `v0.9.0` | Repository tooling, signing, and integration |
 | `v1.0.0` | Benchmarked, tested, production-ready |
 
 ## License
 
-GPL-3.0-or-later. See [LICENSE](LICENSE).
+GPL-3.0-or-later — see [LICENSE](LICENSE).

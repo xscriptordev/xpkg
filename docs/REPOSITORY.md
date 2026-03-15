@@ -1,0 +1,181 @@
+# Repository Management
+
+How to create, manage, and host package repositories with xpkg.
+
+---
+
+## Overview
+
+A **repository** is a collection of `.xp` packages with a database index
+that `xpm` can query and install from. The database is an ALPM-compatible
+compressed tar archive (`.db.tar.zst` by default) containing `desc` and
+`depends` files for each package.
+
+---
+
+## Creating a Repository
+
+Repositories are created automatically when you add the first package:
+
+```bash
+# Create (or update) a repository and add a package
+xpkg repo-add myrepo.db.tar.zst hello-2.12-1-x86_64.xp
+```
+
+Output:
+
+```
+==> Added hello-2.12-1 to myrepo.db.tar.zst
+    Repository now contains 1 package(s)
+```
+
+### Supported database formats
+
+| Format | Extension |
+|--------|-----------|
+| Zstandard (default) | `.db.tar.zst` |
+| Gzip | `.db.tar.gz` |
+| XZ | `.db.tar.xz` |
+
+The format is auto-detected from the file extension.
+
+---
+
+## Adding Packages
+
+```bash
+# Add a single package
+xpkg repo-add myrepo.db.tar.zst package-1.0-1-x86_64.xp
+
+# Add and sign the database
+xpkg repo-add myrepo.db.tar.zst package-1.0-1-x86_64.xp --sign
+```
+
+If a package with the same name already exists in the database, the entry
+is **replaced** with the new version.
+
+---
+
+## Removing Packages
+
+```bash
+# Remove by package name
+xpkg repo-remove myrepo.db.tar.zst hello
+
+# Remove and sign the database
+xpkg repo-remove myrepo.db.tar.zst hello --sign
+```
+
+---
+
+## Repository Layout
+
+For hosting (HTTP/HTTPS), organize your repository like this:
+
+```
+myrepo/
+├── myrepo.db.tar.zst           # Database index
+├── myrepo.db.tar.zst.sig       # Database signature (optional)
+├── myrepo.db -> myrepo.db.tar.zst  # Convenience symlink
+├── hello-2.12-1-x86_64.xp     # Package files
+├── hello-2.12-1-x86_64.xp.sig # Package signature (optional)
+├── curl-8.5.0-1-x86_64.xp
+└── ...
+```
+
+xpkg includes a deploy helper to generate this layout automatically:
+
+```rust
+// Library API
+use xpkg_core::repo::{deploy_repo, read_db};
+
+let db = read_db(&db_path, "myrepo")?;
+let result = deploy_repo(&db, &output_dir, &[package_path])?;
+```
+
+---
+
+## Hosting on GitHub Pages
+
+1. Create a repository (e.g. `xscriptordev/xrepo`)
+2. Build your packages with xpkg
+3. Add them to a database:
+
+```bash
+mkdir -p repo/x86_64
+cd repo/x86_64
+
+# Add packages
+xpkg repo-add xrepo.db.tar.zst ../../packages/hello-2.12-1-x86_64.xp
+xpkg repo-add xrepo.db.tar.zst ../../packages/xfetch-0.1.0-1-x86_64.xp
+
+# Copy package files alongside the database
+cp ../../packages/*.xp .
+```
+
+4. Push to GitHub and enable Pages for the repository
+5. Configure xpm to use the repository:
+
+```ini
+# /etc/xpm/xpm.conf or user config
+[xrepo]
+Server = https://xscriptordev.github.io/xrepo/x86_64
+```
+
+---
+
+## Hosting on Any HTTP Server
+
+Any static file server works (nginx, Apache, Caddy, S3, etc.):
+
+```nginx
+# nginx example
+server {
+    listen 80;
+    server_name repo.example.com;
+    root /srv/xrepo;
+    autoindex on;
+}
+```
+
+The only requirement is that the `.db.tar.zst` and `.xp` files are
+accessible via HTTP GET requests.
+
+---
+
+## Database Internals
+
+The database is a tar archive containing one directory per package:
+
+```
+hello-2.12-1/
+├── desc       # Package metadata (name, version, description, etc.)
+└── depends    # Dependency information
+```
+
+The `desc` file uses a key-value format compatible with ALPM:
+
+```
+%FILENAME%
+hello-2.12-1-x86_64.xp
+
+%NAME%
+hello
+
+%VERSION%
+2.12-1
+
+%DESC%
+GNU Hello — the friendly greeter
+
+%CSIZE%
+19200
+
+%ISIZE%
+49152
+
+%SHA256SUM%
+a948904f2f0f479b8f8564e9d7563891e5c23fd4f3a9b62c1b9e8f05e6c84d73
+```
+
+This format ensures compatibility with `xpm`'s sync database reader.
