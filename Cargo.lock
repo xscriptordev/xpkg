@@ -1664,9 +1664,12 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "tar",
+ "tempfile",
  "tracing",
  "tracing-subscriber",
  "xpkg-core",
+ "zstd",
 ]
 
 [[package]]

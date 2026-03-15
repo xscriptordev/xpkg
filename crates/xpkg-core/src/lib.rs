@@ -7,8 +7,10 @@ pub mod archive;
 pub mod builder;
 pub mod config;
 pub mod error;
+pub mod lint;
 pub mod metadata;
 pub mod recipe;
+pub mod repo;
 pub mod source;
 
 // Re-export key types for convenience.

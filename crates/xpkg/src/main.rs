@@ -150,9 +150,54 @@ fn cmd_build(config: &XpkgConfig, args: &cli::BuildArgs) -> Result<()> {
     Ok(())
 }
 
-fn cmd_lint(_config: &XpkgConfig, _args: &cli::LintArgs) -> Result<()> {
-    tracing::info!("lint: not yet implemented");
-    println!("xpkg lint — not yet implemented");
+fn cmd_lint(_config: &XpkgConfig, args: &cli::LintArgs) -> Result<()> {
+    use xpkg_core::lint::{format_report, lint_package, ReportFormat};
+
+    let archive_path = &args.package;
+    tracing::info!(path = %archive_path.display(), "linting package");
+
+    // ── Extract the archive to a temp directory ─────────────────────
+    let tmp = tempfile::tempdir().with_context(|| "failed to create temp directory")?;
+    let extract_dir = tmp.path();
+
+    let file = std::fs::File::open(archive_path)
+        .with_context(|| format!("failed to open {}", archive_path.display()))?;
+
+    let decoder = zstd::Decoder::new(file)
+        .with_context(|| format!("failed to decompress {}", archive_path.display()))?;
+    let mut archive = tar::Archive::new(decoder);
+    archive
+        .unpack(extract_dir)
+        .with_context(|| format!("failed to extract {}", archive_path.display()))?;
+
+    // ── Read .PKGINFO if present ────────────────────────────────────
+    let pkginfo_path = extract_dir.join(".PKGINFO");
+    let pkginfo_content = if pkginfo_path.exists() {
+        Some(std::fs::read_to_string(&pkginfo_path).with_context(|| "failed to read .PKGINFO")?)
+    } else {
+        None
+    };
+
+    // ── Run lint checks ─────────────────────────────────────────────
+    println!("==> Linting {}", archive_path.display());
+
+    let result = lint_package(extract_dir, pkginfo_content.as_deref(), args.strict)
+        .with_context(|| "lint checks failed")?;
+
+    let report = format_report(&result, ReportFormat::Human);
+    print!("{report}");
+
+    if result.has_errors() {
+        anyhow::bail!(
+            "lint failed with {} error(s)",
+            result.count(xpkg_core::lint::Severity::Error)
+        );
+    }
+
+    if !result.has_warnings() && result.total() == 0 {
+        println!("==> Package passed all lint checks");
+    }
+
     Ok(())
 }
 
@@ -205,14 +250,69 @@ fn cmd_verify(_args: &cli::VerifyArgs) -> Result<()> {
     Ok(())
 }
 
-fn cmd_repo_add(_args: &cli::RepoAddArgs) -> Result<()> {
-    tracing::info!("repo-add: not yet implemented");
-    println!("xpkg repo-add — not yet implemented");
+fn cmd_repo_add(args: &cli::RepoAddArgs) -> Result<()> {
+    use xpkg_core::repo::{add_entry, entry_from_package, read_db, write_db};
+
+    let db_path = &args.db;
+    let package_path = &args.package;
+
+    tracing::info!(
+        db = %db_path.display(),
+        package = %package_path.display(),
+        "adding package to repository"
+    );
+
+    // Derive repo name from the db path (e.g. "myrepo.db.tar.zst" → "myrepo").
+    let repo_name = db_path
+        .file_name()
+        .and_then(|f| f.to_str())
+        .and_then(|f| f.split('.').next())
+        .unwrap_or("repo");
+
+    let mut db =
+        read_db(db_path, repo_name).with_context(|| "failed to read repository database")?;
+
+    let entry = entry_from_package(package_path)
+        .with_context(|| format!("failed to inspect {}", package_path.display()))?;
+
+    let pkg_display = format!("{}-{}", entry.name, entry.full_version());
+
+    add_entry(&mut db, entry);
+    write_db(&db).with_context(|| "failed to write repository database")?;
+
+    println!("==> Added {pkg_display} to {}", db_path.display());
+    println!("    Repository now contains {} package(s)", db.len());
+
     Ok(())
 }
 
-fn cmd_repo_remove(_args: &cli::RepoRemoveArgs) -> Result<()> {
-    tracing::info!("repo-remove: not yet implemented");
-    println!("xpkg repo-remove — not yet implemented");
+fn cmd_repo_remove(args: &cli::RepoRemoveArgs) -> Result<()> {
+    use xpkg_core::repo::{read_db, remove_entry, write_db};
+
+    let db_path = &args.db;
+    let pkgname = &args.pkgname;
+
+    tracing::info!(db = %db_path.display(), package = %pkgname, "removing package from repository");
+
+    let repo_name = db_path
+        .file_name()
+        .and_then(|f| f.to_str())
+        .and_then(|f| f.split('.').next())
+        .unwrap_or("repo");
+
+    let mut db =
+        read_db(db_path, repo_name).with_context(|| "failed to read repository database")?;
+
+    match remove_entry(&mut db, pkgname) {
+        Some(_) => {
+            write_db(&db).with_context(|| "failed to write repository database")?;
+            println!("==> Removed {pkgname} from {}", db_path.display());
+            println!("    Repository now contains {} package(s)", db.len());
+        }
+        None => {
+            anyhow::bail!("package '{pkgname}' not found in {}", db_path.display());
+        }
+    }
+
     Ok(())
 }

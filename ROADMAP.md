@@ -86,14 +86,14 @@ Next step: Phase 4 (build engine — prepare/build/check/package pipeline).
 
 ## Phase 7 · Package Linting <!-- phase:phase-7:linting -->
 
-- [ ] Implement linting framework — pluggable rule engine with severity levels (error, warning, info) (#41)
-- [ ] Implement dependency checks — verify all ELF dependencies are declared in depends (#42)
-- [ ] Implement permission checks — flag world-writable files, incorrect ownership, suid/sgid (#43)
-- [ ] Implement path checks — detect files in non-standard directories (/usr/local, /opt misuse) (#44)
-- [ ] Implement metadata checks — validate .PKGINFO completeness and field correctness (#45)
-- [ ] Implement ELF analysis — check for missing RPATH, unneeded TEXTREL, stack protector (#46)
-- [ ] Implement linting reports — human-readable and machine-parseable output formats (#47)
-- [ ] Write linting test suite — packages with known issues for each lint rule (#48)
+- [x] Implement linting framework — pluggable rule engine with severity levels (error, warning, info) (#41)
+- [x] Implement dependency checks — verify all ELF dependencies are declared in depends (#42)
+- [x] Implement permission checks — flag world-writable files, incorrect ownership, suid/sgid (#43)
+- [x] Implement path checks — detect files in non-standard directories (/usr/local, /opt misuse) (#44)
+- [x] Implement metadata checks — validate .PKGINFO completeness and field correctness (#45)
+- [x] Implement ELF analysis — check for missing RPATH, unneeded TEXTREL, stack protector (#46)
+- [x] Implement linting reports — human-readable and machine-parseable output formats (#47)
+- [x] Write linting test suite — packages with known issues for each lint rule (#48)
 
 ## Phase 8 · Repository Management <!-- phase:phase-8:repo-tools -->
 
