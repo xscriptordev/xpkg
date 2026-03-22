@@ -3,13 +3,13 @@
 <p align="center">
   <strong>Package builder for the X</strong><br>
   Build, lint, sign, and publish <code>.xp</code> packages — the developer companion to
-  <a href="https://github.com/xscriptordev/xpm">xpm</a>.
+  <a href="https://github.com/xscriptor/xpm">xpm</a>.
 </p>
 
 <p align="center">
-    <img alt="Linux" src="https://xscriptordev.github.io/badges/os/linux.svg">
-    <img alt="Rust" src="https://xscriptordev.github.io/badges/languages/rust.svg">
-    <img alt="Alpha" src="https://xscriptordev.github.io/badges/status/alpha.svg">
+    <img alt="Linux" src="https://xscriptor.github.io/badges/os/linux.svg">
+    <img alt="Rust" src="https://xscriptor.github.io/badges/languages/rust.svg">
+    <img alt="Alpha" src="https://xscriptor.github.io/badges/status/alpha.svg">
 </p>
 
 ---
@@ -38,7 +38,7 @@ for installation with `xpm`. Think of it as the `makepkg` + `repo-add` +
 
 ```bash
 # 1. Install xpkg
-git clone https://github.com/xscriptordev/xpkg.git
+git clone https://github.com/xscriptor/xpkg.git
 cd xpkg
 cargo build --release
 sudo install -Dm755 target/release/xpkg /usr/local/bin/xpkg

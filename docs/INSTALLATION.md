@@ -30,7 +30,7 @@ How to build and install xpkg from source.
 
 ```bash
 # Clone the repository
-git clone https://github.com/xscriptordev/xpkg.git
+git clone https://github.com/xscriptor/xpkg.git
 cd xpkg
 
 # Build in release mode

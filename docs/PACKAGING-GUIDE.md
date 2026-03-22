@@ -35,7 +35,7 @@ name = "xfetch"
 version = "0.1.0"
 release = 1
 description = "System information tool written in Rust"
-url = "https://github.com/xscriptordev/xfetch"
+url = "https://github.com/xscriptor/xfetch"
 license = ["GPL-3.0-or-later"]
 arch = ["x86_64"]
 
@@ -44,7 +44,7 @@ depends = ["glibc"]
 makedepends = ["cargo", "gcc"]
 
 [source]
-urls = ["https://github.com/xscriptordev/xfetch/archive/v0.1.0.tar.gz"]
+urls = ["https://github.com/xscriptor/xfetch/archive/v0.1.0.tar.gz"]
 sha256sums = ["SKIP"]
 
 [build]

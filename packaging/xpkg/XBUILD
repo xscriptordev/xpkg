@@ -3,7 +3,7 @@ name = "xpkg"
 version = "0.1.0"
 release = 1
 description = "Package builder for X Distribution"
-url = "https://github.com/xscriptordev/xpkg"
+url = "https://github.com/xscriptor/xpkg"
 license = ["GPL-3.0-or-later"]
 arch = ["x86_64"]
 

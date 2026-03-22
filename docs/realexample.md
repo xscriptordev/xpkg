@@ -15,10 +15,10 @@ Execution date: 2026-03-17
 
 ## Repository URLs (updated owner)
 
-The project owner moved from `xscriptor` to `xscriptordev`.
+The project owner moved from `xscriptor` to `xscriptor`.
 
-- New repository URL: `https://github.com/xscriptordev/x-repo`
-- Current GitHub Pages endpoint still used in tooling: `https://xscriptordev.github.io/x-repo`
+- New repository URL: `https://github.com/xscriptor/x-repo`
+- Current GitHub Pages endpoint still used in tooling: `https://xscriptor.github.io/x-repo`
 
 ## Repositories Used
 
@@ -46,7 +46,7 @@ name = "xfetch"
 version = "0.1.0"
 release = 1
 description = "Cross-platform system information fetch tool written in Rust"
-url = "https://github.com/xscriptordev/xfetch"
+url = "https://github.com/xscriptor/xfetch"
 license = ["MIT"]
 arch = ["x86_64"]
 
@@ -225,7 +225,7 @@ cp ~/Documents/repos/xpkgrepos/x-repo/public/repo/x86_64/x.db.tar.gz \
 The `.xp` artifact is intentionally **not** copied into `x-repo`.
 For this run, it is hosted in `xfetch` Releases:
 
-- `https://github.com/xscriptordev/xfetch/releases/download/xfetch-0.1.0-1/xfetch-0.1.0-1-x86_64.xp`
+- `https://github.com/xscriptor/xfetch/releases/download/xfetch-0.1.0-1/xfetch-0.1.0-1-x86_64.xp`
 
 ### 3. Validate with xpm
 
@@ -293,4 +293,4 @@ Temporary execution files:
 - Current `xpm` implementation only syncs `.db`/`.files` mirrors. Package download/install flow is part of Phase 7.
 - To use metadata-only repos with package artifacts in external hosting (for example GitHub Releases), package fetch URL composition must be implemented in `xpm` install/fetch flow.
 - Full install/remove transaction testing in `xpm` still depends on Phase 7 implementation.
-- Before publishing upstream, update any remaining `xscriptor` links in docs/workflows to `xscriptordev` where applicable.
+- Before publishing upstream, update any remaining `xscriptor` links in docs/workflows to `xscriptor` where applicable.
